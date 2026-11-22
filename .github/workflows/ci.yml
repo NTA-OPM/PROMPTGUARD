@@ -32,7 +32,7 @@ jobs:
       # Fails the build on a recall/false-positive regression on the DEV split (the test split is locked).
       - run: promptguard evaluate --dataset datasets/baseline --split dev --min-recall 0.90 --max-fpr 0.10 --output run.json
       - run: promptguard report run.json --format html --output report.html
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: benchmark-report
           path: |
@@ -47,7 +47,7 @@ jobs:
       - run: pip install pip-audit cyclonedx-bom ".[api]"
       - run: pip-audit -r deployment/constraints-api.txt
       - run: cyclonedx-py environment -o sbom.cdx.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: sbom, path: sbom.cdx.json }
   docker:
     runs-on: ubuntu-latest
