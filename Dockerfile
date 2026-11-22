@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM python:3.12-slim AS build
+FROM python:3.15-slim AS build
 WORKDIR /src
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 COPY pyproject.toml README.md LICENSE ./
@@ -8,7 +8,7 @@ COPY deployment/constraints-api.txt ./constraints.txt
 RUN pip wheel --no-deps --wheel-dir /wheels . \
  && pip wheel --wheel-dir /wheels -c constraints.txt "fastapi" "uvicorn" "pydantic" "pyyaml" "typer"
 
-FROM python:3.12-slim
+FROM python:3.15-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     PROMPTGUARD_RATE_LIMIT_PER_MINUTE=120 PROMPTGUARD_ENABLE_DOCS=false
 RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin promptguard
