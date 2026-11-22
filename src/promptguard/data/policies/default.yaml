@@ -1,0 +1,80 @@
+# PromptGuard default policy (v0.1). Thresholds are *starting points* chosen from the dev
+# split of the baseline corpus (see docs/benchmark-methodology.md). Tune per application.
+# Validate with:  promptguard policy validate <file>
+policy_id: promptguard-default
+version: 0.1.0
+description: Conservative defaults. Direct user input is reviewed rather than hard-blocked; untrusted third-party content and agent actions are stricter.
+profiles:
+  user-input:
+    description: Text typed or submitted directly by an end user.
+    failure_mode: fail_open
+    quoted_downgrade: true
+    risk_actions:
+      informational: allow_with_monitoring
+      low: allow_with_monitoring
+      medium: review
+      high: review
+      critical: block
+  retrieved-document:
+    description: RAG chunks, web pages, files, emails - content an attacker can author without talking to the app.
+    failure_mode: review
+    truncation_action: review
+    risk_actions:
+      informational: allow_with_monitoring
+      low: allow_with_monitoring
+      medium: review
+      high: block
+      critical: block
+  tool-output:
+    description: Output returned by tools, APIs or connectors.
+    failure_mode: review
+    truncation_action: review
+    risk_actions:
+      informational: allow_with_monitoring
+      low: allow_with_monitoring
+      medium: review
+      high: block
+      critical: block
+  agent-plan:
+    description: Plans and action arguments produced by an agent before execution.
+    failure_mode: fail_closed
+    truncation_action: review
+    sanitize_invisible: false
+    critical_on_action_intent: true
+    risk_actions:
+      informational: allow_with_monitoring
+      low: allow_with_monitoring
+      medium: review
+      high: block
+      critical: block
+  multimodal-transcript:
+    description: OCR / speech transcripts and other extracted text (uncertain provenance).
+    failure_mode: review
+    truncation_action: review
+    risk_actions:
+      informational: allow_with_monitoring
+      low: allow_with_monitoring
+      medium: review
+      high: block
+      critical: block
+  high-risk-action:
+    description: Content that can influence irreversible or high-impact actions (payments, deletion, external sends).
+    failure_mode: fail_closed
+    truncation_action: block
+    sanitize_invisible: false
+    critical_on_action_intent: true
+    risk_actions:
+      informational: allow_with_monitoring
+      low: review
+      medium: block
+      high: block
+      critical: block
+  trusted-instruction:
+    description: Application-authored instructions. Scanned for accidental unsafe interpolation; lenient by design.
+    failure_mode: fail_open
+    risk_actions:
+      informational: allow_with_monitoring
+      low: allow_with_monitoring
+      medium: allow_with_monitoring
+      high: review
+      critical: review
