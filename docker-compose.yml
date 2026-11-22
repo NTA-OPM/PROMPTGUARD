@@ -1,0 +1,19 @@
+# Local, privacy-first deployment: stateless, no outbound network required, localhost-only port.
+services:
+  promptguard:
+    build: .
+    image: promptguard-oss:dev
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      # Set keys for any non-local deployment (comma-separated). Empty = open development mode.
+      PROMPTGUARD_API_KEYS: "${PROMPTGUARD_API_KEYS:-}"
+      PROMPTGUARD_ANALYST_KEYS: "${PROMPTGUARD_ANALYST_KEYS:-}"
+      PROMPTGUARD_MAX_BODY_BYTES: "1000000"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    pids_limit: 128
+    restart: unless-stopped

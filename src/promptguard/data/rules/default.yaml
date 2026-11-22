@@ -1,0 +1,366 @@
+# PromptGuard default rule pack (English only).
+#
+# Every rule is a *signal*, not a verdict. Patterns are matched case-insensitively against
+# normalized views of the text (see docs/architecture.md). All quantifiers are bounded to
+# keep worst-case matching time linear-ish; new rules must pass tests/unit/test_rules_safety.py.
+#
+# Fields
+#   severity            severity when the content comes from the user / trusted channel
+#   severity_third_party  severity when source_type is retrieved/tool/document/OCR/unknown
+#   confidence          author-assigned weight in [0,1]; NOT a calibrated probability
+pack_id: promptguard-default
+version: 0.1.0
+language: en
+rules:
+  # ---------------------------------------------------------------- instruction override
+  - id: PG-IO-001
+    category: instruction_override
+    severity: high
+    confidence: 0.85
+    explanation: "Asks the model to ignore, discard or override earlier instructions."
+    pattern: |-
+      \b(?:ignore|disregard|forget|override|bypass|discard|skip|abandon|drop)\b[^.\n]{0,40}?\b(?:previous|prior|above|earlier|preceding|former|original|initial|existing|system|all|any)\b[^.\n]{0,25}?\b(?:instructions?|prompts?|rules?|directions?|guidelines?|commands?|context|messages?|constraints?|directives?|programming|training)\b
+  - id: PG-IO-002
+    category: instruction_override
+    severity: high
+    confidence: 0.75
+    explanation: "Tells the model not to follow or obey its prior or system-level instructions."
+    pattern: |-
+      \b(?:do not|don't|never|stop)\s+(?:follow|obey|listen to|comply with|adhere to|following|obeying)\b[^.\n]{0,30}?\b(?:previous|prior|earlier|original|system|developer|above|your)\b
+  - id: PG-IO-003
+    category: instruction_override
+    severity: medium
+    confidence: 0.55
+    explanation: "Declares a permanent behaviour change (\"from now on you must ...\")."
+    pattern: |-
+      \b(?:from now on|henceforth|starting now|going forward|for the rest of (?:this|the) (?:conversation|chat|session))\b[^.\n]{0,60}?\b(?:you (?:will|must|shall|are|should|only|can)|always|never|only)\b
+  - id: PG-IO-004
+    category: instruction_override
+    severity: low
+    confidence: 0.4
+    explanation: "Introduces replacement instructions."
+    pattern: |-
+      \b(?:new|updated|revised|replacement|actual|real)\s+(?:instructions?|rules?|directives?|task)\s*(?:are|is|follow|:|below|for you)
+  - id: PG-IO-005
+    category: instruction_override
+    severity: medium
+    confidence: 0.5
+    explanation: "Declares the previous task finished in order to start a different one."
+    pattern: |-
+      \b(?:the\s+(?:task|conversation|above|previous\s+task)\s+(?:is|has been)\s+(?:now\s+)?(?:over|finished|complete|completed|ended)|end of (?:the )?(?:task|instructions|conversation)|that was a test|ignore the (?:above|previous))\b[^\n]{0,80}?\b(?:now|instead|new|real|actual|next)\b
+  - id: PG-IO-006
+    category: instruction_override
+    severity: high
+    confidence: 0.7
+    explanation: "Instructs the model to disregard what it was asked or told so far (imperative + scope word)."
+    pattern: |-
+      \b(?:ignore|disregard|forget)\s+(?:everything|anything|all)\s+(?:you(?:'ve| have)?\s+(?:been\s+)?(?:told|said|given|instructed|learned)|(?:i|we)\s+(?:said|told)|before|above|so far|that came before)\b
+  # ---------------------------------------------------------------- impersonation
+  - id: PG-SI-001
+    category: system_impersonation
+    severity: medium
+    severity_third_party: high
+    confidence: 0.6
+    explanation: "Claims to be the system, developer, administrator or model vendor."
+    pattern: |-
+      \b(?:i am|i'm|this is|message from|speaking as|writing as|on behalf of)\s+(?:your|the|an?)?\s*(?:system|developer|administrator|admin|operator|anthropic|openai|owner|creator|root|security team|ai provider|platform)\b
+  - id: PG-SI-002
+    category: system_impersonation
+    severity: medium
+    confidence: 0.55
+    explanation: "Uses privileged-sounding labels (system override, admin directive, ...)."
+    pattern: |-
+      \b(?:system|developer|admin|administrator|root|operator|priority)\s+(?:override|directive|command|instruction|notice|update)\b
+  - id: PG-SI-003
+    category: system_impersonation
+    severity: medium
+    confidence: 0.55
+    explanation: "Claims authorisation from a privileged party to justify the request."
+    pattern: |-
+      \b(?:authori[sz]ed|approved|verified|sanctioned|cleared)\s+by\s+(?:the\s+)?(?:system|developer|admin|administrator|operator|security|owner|management|platform)\b
+  - id: PG-SI-004
+    category: system_impersonation
+    severity: high
+    confidence: 0.75
+    explanation: "Labels text as an urgent/important message addressed to the AI."
+    pattern: |-
+      \b(?:important|urgent|critical|attention|notice)\s*(?:system\s*)?(?:instruction|message|notice|update|directive)?\s*(?:for|to)\s+(?:the\s+)?(?:ai|a\.i\.|assistant|ai assistant|llm|language model|model|agent|chatbot|bot)\b
+  - id: PG-SI-005
+    category: system_impersonation
+    severity: medium
+    severity_third_party: high
+    confidence: 0.55
+    explanation: "Addresses the AI directly and tells it what to do, typical of content planted for an AI reader."
+    pattern: |-
+      \b(?:attention|note|hey|hello|dear|hi)\s*[:,]?\s*(?:ai|llm|assistant|chatgpt|gpt|claude|gemini|copilot|language model|model|agent|chatbot)\b[^.\n]{0,30}?\b(?:you must|you should|you will|please|do not|ignore|instead|now|make sure)\b
+  # ---------------------------------------------------------------- prompt disclosure
+  - id: PG-PD-001
+    category: prompt_disclosure
+    severity: high
+    confidence: 0.7
+    explanation: "Asks for the system/hidden/initial prompt or instructions to be revealed."
+    pattern: |-
+      \b(?:reveal|show|print|display|output|repeat|tell me|give me|leak|dump|expose|disclose|share|write out|recite|copy|paste|send me)\b[^.\n]{0,40}?\b(?:system|initial|hidden|secret|original|internal|confidential)\s+(?:prompt|instructions?|message|rules|configuration|guidelines|directives?)\b
+  - id: PG-PD-002
+    category: prompt_disclosure
+    severity: medium
+    confidence: 0.5
+    explanation: "Asks for the assistant's own instructions or rules to be shown."
+    pattern: |-
+      \b(?:reveal|show|print|display|repeat|tell me|give me|recite)\b[^.\n]{0,20}?\byour\s+(?:system\s+|initial\s+|original\s+|hidden\s+|full\s+)?(?:prompt|instructions|rules|guidelines|configuration|directives)\b|\bwhat (?:is|are|were)\s+(?:your|the)\s+(?:system|initial|original|hidden|full)\s+(?:prompt|instructions?|rules)\b
+  - id: PG-PD-003
+    category: prompt_disclosure
+    severity: medium
+    confidence: 0.6
+    explanation: "Asks for everything above or before to be repeated verbatim (prompt-leak pattern)."
+    pattern: |-
+      \b(?:repeat|print|output|recite|copy)\s+(?:everything|all|the (?:text|words|content))\s+(?:above|before|prior|preceding)\b|\b(?:verbatim|word for word)\b[^.\n]{0,40}?\b(?:above|before|prompt|instructions)\b
+  # ---------------------------------------------------------------- tool / action
+  - id: PG-TI-001
+    category: tool_invocation_manipulation
+    severity: low
+    severity_third_party: medium
+    confidence: 0.4
+    explanation: "Directs the model to invoke a tool, function, API or command."
+    pattern: |-
+      \b(?:call|invoke|run|execute|trigger)\s+(?:the\s+|this\s+|that\s+)?(?:\w+\s+){0,2}(?:tool|function|api|command|plugin|shell|terminal|script)\b[^.\n]{0,40}?\b(?:with|using|to|and|now|immediately)\b
+  - id: PG-TI-002
+    category: tool_invocation_manipulation
+    severity: low
+    severity_third_party: medium
+    confidence: 0.45
+    explanation: "Contains a download-and-execute or destructive shell pattern."
+    pattern: |-
+      \b(?:rm\s+-rf|curl\s+[^|\n]{0,80}\|\s*(?:ba)?sh|wget\s+[^|\n]{0,80}\|\s*(?:ba)?sh|powershell\s+-enc\w*|nc\s+-e|bash\s+-i)\b
+  - id: PG-TI-003
+    category: tool_invocation_manipulation
+    severity: high
+    confidence: 0.6
+    explanation: "Asks to grant or escalate privileges."
+    pattern: |-
+      \b(?:grant|give|enable|elevate|escalate)\b[^.\n]{0,30}?\b(?:admin|root|full|elevated|unrestricted|all)\s+(?:access|permissions?|privileges?|rights)\b
+  - id: PG-TI-004
+    category: tool_invocation_manipulation
+    severity: high
+    confidence: 0.75
+    explanation: "Tells the model to act without asking for the user's confirmation or approval."
+    pattern: |-
+      \b(?:without|do not|don't|never)\s+(?:asking|ask|requiring|require|waiting for|wait for|seeking|seek|needing|requesting)\s+(?:for\s+)?(?:the\s+|any\s+)?(?:user'?s?\s+)?(?:confirmation|approval|permission|consent|authori[sz]ation|verification)\b
+  - id: PG-TI-005
+    category: tool_invocation_manipulation
+    severity: low
+    severity_third_party: medium
+    confidence: 0.4
+    explanation: "Instructs bulk deletion or wiping of data."
+    pattern: |-
+      \b(?:delete|erase|wipe|drop|purge|destroy)\s+(?:all|every|the entire|the whole)\s+(?:\w+\s+)?(?:files?|data|records?|emails?|messages?|database|tables?|backups?|logs?|accounts?)\b
+  - id: PG-TI-006
+    category: tool_invocation_manipulation
+    severity: low
+    severity_third_party: medium
+    confidence: 0.4
+    explanation: "Instructs a payment or transfer of funds."
+    pattern: |-
+      \b(?:transfer|wire|send|pay)\s+(?:[$£€]\s?)?\d[\d,.]*\s*(?:usd|eur|dollars|euros|btc|bitcoin|eth|gbp)?\b[^.\n]{0,40}?\b(?:to|into)\b
+  # ---------------------------------------------------------------- exfiltration
+  - id: PG-DE-001
+    category: data_exfiltration
+    severity: low
+    severity_third_party: medium
+    confidence: 0.45
+    explanation: "Instructs sending or posting information to an external URL or address."
+    pattern: |-
+      \b(?:send|forward|email|mail|post|upload|transmit|submit|exfiltrate|leak|transfer|relay)\b[^.\n]{0,80}?\b(?:to|at|into|via|through)\b[^.\n]{0,60}?(?:https?://|www\.|[\w.+-]+@[\w-]+\.[a-z]{2,})
+  - id: PG-DE-002
+    category: data_exfiltration
+    severity: medium
+    severity_third_party: high
+    confidence: 0.6
+    explanation: "Targets sensitive data (credentials, keys, history, system prompt) for sending, including or encoding."
+    pattern: |-
+      \b(?:send|forward|email|post|upload|transmit|leak|exfiltrate|reveal|include|append|encode|embed|attach|insert|copy|read out)\b[^.\n]{0,80}?\b(?:api[ _-]?keys?|passwords?|credentials?|secrets?|tokens?|private keys?|ssh keys?|cookies?|conversation (?:history|context)|chat history|system prompt|personal (?:data|information)|user data|confidential|environment variables?|access keys?)\b
+  - id: PG-DE-003
+    category: data_exfiltration
+    severity: high
+    confidence: 0.8
+    explanation: "Markdown image whose URL carries a placeholder/templated query, a known channel for leaking data when rendered."
+    pattern: |-
+      !\[[^\]]{0,100}\]\(\s*https?://[^)\s]{1,200}\?[^)\s]*(?:\{[^}]{1,80}\}|<[^>]{1,80}>|\[[^\]]{1,80}\]|%7B)
+  - id: PG-DE-004
+    category: data_exfiltration
+    severity: medium
+    confidence: 0.5
+    explanation: "Asks to encode data and then output or send it (common filter-evasion for leaks)."
+    pattern: |-
+      \b(?:encode|encrypt|base64|obfuscate)\b[^.\n]{0,40}?\b(?:and|then)\b[^.\n]{0,30}?\b(?:send|include|output|append|print|put|embed|append)\b
+  # ---------------------------------------------------------------- trust boundary
+  - id: PG-TB-001
+    category: trust_boundary_manipulation
+    severity: high
+    confidence: 0.7
+    explanation: "Instructs the model to treat the following content as authoritative instructions."
+    pattern: |-
+      \b(?:treat|consider|regard|interpret|follow|obey|execute)\s+(?:the\s+)?(?:following|this|below|text|content|document|message|email|page)\b[^.\n]{0,40}?\b(?:as|like)\s+(?:a\s+|an\s+|your\s+)?(?:system|developer|trusted|authoritative|official|instructions?|commands?)\b
+  - id: PG-TB-002
+    category: trust_boundary_manipulation
+    severity: medium
+    severity_third_party: high
+    confidence: 0.55
+    explanation: "Asserts that the user already approved or authorised the action."
+    pattern: |-
+      \b(?:the\s+)?user\s+(?:has\s+|have\s+)?(?:already\s+)?(?:authori[sz]ed|approved|consented|confirmed|pre-?approved|allowed|permitted)\s+(?:you|this|it|all|these|the following)\b
+  - id: PG-TB-003
+    category: trust_boundary_manipulation
+    severity: medium
+    confidence: 0.6
+    explanation: "Fake end-of-document / end-of-data delimiter, often used to break out of a data section."
+    pattern: |-
+      (?:-{3,}|={3,}|#{3,}|\*{3,}|\[)\s*(?:end|stop)[ _]+(?:of[ _]+)?(?:the[ _]+)?(?:document|data|text|content|context|user input|input|retrieved|search results?|email|page|quote|untrusted)\b
+  - id: PG-TB-004
+    category: trust_boundary_manipulation
+    severity: high
+    confidence: 0.7
+    explanation: "Claims that this text outranks, overrides or supersedes other instructions."
+    pattern: |-
+      \b(?:this|these|the following)\s+(?:instructions?|rules?|message|document|text|section)\s+(?:takes?|have|has|supersedes?|overrides?|outranks?)\s+(?:precedence|priority|authority|over)\b|\btakes?\s+(?:precedence|priority)\s+over\b
+  # ---------------------------------------------------------------- jailbreak framing
+  - id: PG-JB-001
+    category: jailbreak_framing
+    severity: high
+    confidence: 0.8
+    explanation: "Names a well-known jailbreak persona or mode (DAN, developer mode, god mode, ...)."
+    pattern: |-
+      \b(?:do anything now|dan mode|dan jailbreak|developer mode\s+(?:enabled|on|activated|output)|enable developer mode|jailbreak(?:ed)? mode|god mode|sudo mode|unrestricted mode|evil mode)\b
+  - id: PG-JB-002
+    category: jailbreak_framing
+    severity: high
+    confidence: 0.75
+    explanation: "Persona/roleplay framing that explicitly removes the model's rules, filters or ethics."
+    pattern: |-
+      \b(?:you are|you're|act as|pretend (?:to be|you are|you're)|roleplay as|role-play as|behave as|simulate|imagine you are)\b[^.\n]{0,60}?\b(?:no|without|free from|free of|not bound by|unbound by|not subject to)\s+(?:any\s+|all\s+)?(?:restrictions?|rules?|limitations?|filters?|guidelines?|constraints?|censorship|ethics|ethical|polic(?:y|ies)|safeguards?)\b
+  - id: PG-JB-003
+    category: jailbreak_framing
+    severity: high
+    confidence: 0.6
+    explanation: "Requests an unfiltered/uncensored/jailbroken version or persona of the assistant."
+    pattern: |-
+      \b(?:unfiltered|uncensored|unrestricted|unaligned|jailbroken|amoral)\s+(?:ai|assistant|model|mode|version|chatbot|llm|persona|response|answer)\b
+  - id: PG-JB-004
+    category: jailbreak_framing
+    severity: high
+    confidence: 0.75
+    explanation: "Asks to disable, bypass or evade safety filters or guardrails."
+    pattern: |-
+      \b(?:bypass|circumvent|evade|disable|turn off|remove|override|ignore|get around|work around|switch off)\b[^.\n]{0,30}?\b(?:safety|content|moderation|ethical|security|safeguard|alignment)\s*(?:filters?|guidelines?|policies|policy|restrictions?|measures|guardrails?|checks?|protocols?|rules?|training|features?|mechanisms?)\b
+  - id: PG-JB-005
+    category: jailbreak_framing
+    severity: high
+    confidence: 0.6
+    explanation: "States that there are no rules/limits or that the model can do anything."
+    pattern: |-
+      \b(?:you (?:can|will|must) (?:now )?(?:do|say) anything|no (?:ethical|moral|legal) (?:restrictions?|boundaries|limits)|there are no (?:rules|restrictions|limits|boundaries))\b
+  - id: PG-JB-006
+    category: jailbreak_framing
+    severity: medium
+    confidence: 0.5
+    explanation: "Refusal suppression: forbids refusing, warning or adding disclaimers."
+    pattern: |-
+      \b(?:never|do not|don't|must not|cannot|can't|not allowed to)\s+(?:refuse|decline|say no|apologi[sz]e|warn|mention (?:that )?you(?:'re| are) an ai|add (?:any )?(?:disclaimers?|warnings?|caveats?))\b
+  - id: PG-JB-007
+    category: jailbreak_framing
+    severity: high
+    confidence: 0.7
+    explanation: "Dual-persona jailbreak asking for a normal and an unfiltered answer side by side."
+    pattern: |-
+      \b(?:two|2|dual)\s+(?:responses?|answers?|personas?|modes?)\b[^.\n]{0,60}?\b(?:normal|standard|classic|filtered)\b[^.\n]{0,60}?\b(?:unfiltered|jailbroken|dan|developer mode|unrestricted|uncensored)\b
+  # ---------------------------------------------------------------- multi-step coercion
+  - id: PG-MS-001
+    category: multi_step_coercion
+    severity: high
+    confidence: 0.7
+    explanation: "Instructs the model to conceal something from the user, operator or others."
+    pattern: |-
+      \b(?:do not|don't|never)\s+(?:tell|inform|notify|alert|mention (?:this )?to|reveal (?:this )?to|show (?:this )?to|let)\b[^.\n]{0,25}?\b(?:the\s+)?(?:user|human|operator|owner|anyone|them)\b
+  - id: PG-MS-002
+    category: multi_step_coercion
+    severity: high
+    confidence: 0.65
+    explanation: "Asks for covert or silent actions."
+    pattern: |-
+      \b(?:silently|secretly|quietly|covertly|without (?:telling|informing|notifying|alerting)|in the background|without the (?:user|them) (?:knowing|noticing))\b[^.\n]{0,40}?\b(?:send|forward|execute|run|delete|copy|upload|install|call|post|exfiltrate|perform|change|modify|update)\b
+  - id: PG-MS-003
+    category: multi_step_coercion
+    severity: low
+    confidence: 0.35
+    explanation: "Chained steps ending in a sensitive operation (weak signal)."
+    pattern: |-
+      \b(?:first|step 1)\b[^.\n]{0,80}?\b(?:then|next|step 2|after that|finally)\b[^.\n]{0,80}?\b(?:send|forward|upload|delete|email|exfiltrate|execute|post)\b
+  - id: PG-MS-004
+    category: multi_step_coercion
+    severity: medium
+    severity_third_party: high
+    confidence: 0.5
+    explanation: "Asks to persist instructions in memory for future interactions."
+    pattern: |-
+      \b(?:remember|memorize|store|save|persist|keep)\b[^.\n]{0,40}?\b(?:instructions?|rules?|directives?|commands?)\b[^.\n]{0,40}?\b(?:for (?:all )?(?:future|subsequent)|permanently|in (?:your )?memory)\b|\b(?:remember|memorize|store|save|persist|keep)\b[^.\n]{0,30}?\b(?:for (?:all )?(?:future|subsequent)\s+(?:conversations?|chats?|sessions?|interactions?)|permanently|in (?:your )?memory)\b[^.\n]{0,40}?\b(?:instructions?|rules?|directives?|commands?)\b
+  - id: PG-MS-005
+    category: multi_step_coercion
+    severity: high
+    confidence: 0.6
+    explanation: "Self-propagating instruction (asks to copy these instructions into other content)."
+    pattern: |-
+      \b(?:repeat|propagate|include|copy|insert|append)\b[^.\n]{0,30}?\b(?:these|this|the following)\s+(?:instructions?|message|text|prompt)\b[^.\n]{0,40}?\b(?:in|into|to)\s+(?:all|every|each|any|your)\b
+  - id: PG-MS-006
+    category: multi_step_coercion
+    severity: low
+    severity_third_party: medium
+    confidence: 0.35
+    explanation: "Asks the model to instruct or delegate to other agents/tools."
+    pattern: |-
+      \b(?:tell|instruct|ask|command)\s+(?:the\s+|other\s+|any\s+)?(?:other\s+)?(?:agents?|assistants?|models?|bots?|subagents?)\b[^.\n]{0,30}?\b(?:to|that)\b
+  # ---------------------------------------------------------------- encoding / evasion instructions
+  - id: PG-OB-001
+    category: obfuscation_evasion
+    severity: high
+    confidence: 0.7
+    explanation: "Asks to decode an encoded string and then follow/execute it."
+    pattern: |-
+      \b(?:decode|decipher|deobfuscate|decrypt|translate)\b[^.\n]{0,30}?\b(?:base64|b64|hex|rot13|binary|morse|leetspeak|cipher|encoded)\b[^.\n]{0,40}?\b(?:and|then)\s+(?:follow|execute|obey|run|do|perform|act on)\b
+  - id: PG-OB-002
+    category: obfuscation_evasion
+    severity: high
+    confidence: 0.7
+    explanation: "Asks to follow hidden, encoded or embedded instructions."
+    pattern: |-
+      \b(?:follow|execute|obey|run)\s+(?:the\s+)?(?:decoded|hidden|encoded|embedded|secret|base64)\s+(?:instructions?|commands?|message|text|payload)\b
+  - id: PG-OB-003
+    category: obfuscation_evasion
+    severity: low
+    confidence: 0.4
+    explanation: "Asks for output in an encoding that can bypass output filters."
+    pattern: |-
+      \b(?:respond|answer|reply|write|output)\s+(?:only\s+)?in\s+(?:base64|hex|rot13|binary|morse|leetspeak|pig latin|reversed text|cipher)\b
+  # ---------------------------------------------------------------- context injection (planted for AI readers)
+  - id: PG-CI-001
+    category: context_injection
+    severity: medium
+    severity_third_party: high
+    confidence: 0.65
+    explanation: "Conditional addressed to an AI/LLM reader (\"if you are an AI reading this ...\")."
+    pattern: |-
+      \b(?:if|when)\s+you(?:'re| are)\s+(?:an?\s+)?(?:ai|llm|language model|assistant|chatbot|automated|bot|agent|summari[sz]er|reading this|processing this)\b[^.\n]{0,60}
+  - id: PG-CI-002
+    category: context_injection
+    severity: low
+    severity_third_party: high
+    confidence: 0.6
+    explanation: "Instructions attached to a document that tell the reader/AI how to handle it when summarising or processing."
+    pattern: |-
+      \b(?:when|if)\s+(?:you\s+)?(?:summari[sz]e|read|process|parse|analy[sz]e|translate)\s+(?:this|the)\s+(?:document|email|page|text|content|article|file|website)\b[^.\n]{0,60}?\b(?:you (?:must|should|will)|please|always|also|make sure|be sure|ensure)\b
+  - id: PG-CI-003
+    category: context_injection
+    severity: medium
+    confidence: 0.5
+    explanation: "Tells the reader to omit or not mention parts of the surrounding document."
+    pattern: |-
+      \b(?:do not|don't|never)\s+(?:summari[sz]e|mention|include|cite|reference|disclose)\b[^.\n]{0,40}?\b(?:this|the following|the above|these)\s+(?:text|paragraph|section|instructions?|message|part|email|document)\b

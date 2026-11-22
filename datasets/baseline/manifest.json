@@ -1,0 +1,43 @@
+{
+  "dataset_id": "promptguard-baseline",
+  "version": "0.1.0",
+  "title": "PromptGuard baseline corpus (original, synthetic)",
+  "license": "MIT (same as repository); all text authored by the project",
+  "provenance": "Written by project maintainers; no third-party text, no scraping. See DATASET_CARD.md.",
+  "collection_date": "2026-11-22",
+  "intended_use": "Regression testing and honest baseline measurement of rule-based detection. Not a general benchmark.",
+  "schema_version": "1",
+  "files": [
+    {
+      "path": "examples.jsonl",
+      "sha256": "57f9c5e79a1c7d41d76f34bdfbd967b3aedb6f899e7a3c8232386735b4350494"
+    }
+  ],
+  "splits": {
+    "dev": "rule design and default threshold selection",
+    "test": "locked; single-shot evaluation, no tuning"
+  },
+  "locked_splits": [
+    "test"
+  ],
+  "languages": [
+    "de",
+    "en",
+    "es",
+    "fr",
+    "hi",
+    "ne",
+    "pt"
+  ],
+  "labels": [
+    "attack",
+    "benign"
+  ],
+  "limitations": [
+    "Small (a few hundred examples) and author-written: confidence intervals are wide.",
+    "Attack phrasings reflect the author's knowledge of public injection patterns; adaptive attackers are not represented.",
+    "Non-English coverage is a handful of illustrative samples per language, not a benchmark.",
+    "No real-world traffic distribution; benign set is not a measured sample of production prompts."
+  ],
+  "contains_third_party_data": false
+}
